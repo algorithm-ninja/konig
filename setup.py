@@ -32,20 +32,20 @@ headers = [(headers_path, ["graphgen.hpp"])]
 headers += [(os.path.join(headers_path, "cpp-btree"), glob.glob("cpp-btree/*h"))]
 
 setup(
-	name = 'graph-gen',
-	version = '0.1',
-	description = 'graph-gen: graph generation library for Python',
-	author = 'Giorgio Audrito, William Di Luigi, Gabriele Farina, Luca Versari',
-	author_email = 'giorgio.audrito@gmail.com, williamdiluigi@gmail.com, gabr.farina@gmail.com, veluca93@gmail.com',
-	url = 'https://github.com/olimpiadi-informatica/graph-gen',
-	ext_modules = [module],
-	keywords = "graph generation library",
-	data_files = headers,
-	classifiers=[
-		"Development Status :: 3 - Alpha",
-		"Natural Language :: English",
-		"Operating System :: OS Independent",
-		"Programming Language :: Python :: 2",
-		"License :: OSI Approved :: Apache Software License",
-	]
+    name = 'graph-gen',
+    version = '0.1',
+    description = 'graph-gen: graph generation library for Python',
+    author = 'Giorgio Audrito, William Di Luigi, Gabriele Farina, Luca Versari',
+    author_email = 'giorgio.audrito@gmail.com, williamdiluigi@gmail.com, gabr.farina@gmail.com, veluca93@gmail.com',
+    url = 'https://github.com/olimpiadi-informatica/graph-gen',
+    ext_modules = [module],
+    keywords = "graph generation library",
+    data_files = headers,
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Natural Language :: English",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 2",
+        "License :: OSI Approved :: Apache Software License",
+    ]
 )
