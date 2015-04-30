@@ -6,7 +6,7 @@
 #include <sstream>
 #include <numeric>
 #include <cmath>
-#include "cpp-btree/btree_set.h"
+#include "../cpp-btree/btree_set.h"
 
 typedef size_t vertex_t;
 typedef struct{vertex_t tail, head;} edge_t;

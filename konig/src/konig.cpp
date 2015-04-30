@@ -1,5 +1,5 @@
 #include "Python.h"
-#include "graphgen.hpp"
+#include "../include/konig.hpp"
 
 #define CATCH(ret) \
     catch(PythonException& e) { \
@@ -179,7 +179,7 @@ private:
     Weighter<T>* w;
 
 public:
-    pyWeighterWrapper(Weighter<T>& w): w(w) {}
+    pyWeighterWrapper(Weighter<T>& w): w(&w) {}
     ~pyWeighterWrapper() {
         delete w;
     }
@@ -458,7 +458,7 @@ extern "C" {
         PyObject *args,
         PyObject *kwds
     ) {
-        int sz;
+        size_t sz;
         if (!PyArg_ParseTuple(args, "i", &sz))
             return -1;
         if (self->g) {
@@ -552,7 +552,7 @@ extern "C" {
         PyObject *args,
         PyObject *kwds
     ) {
-        int sz;
+        size_t sz;
         if (!PyArg_ParseTuple(args, "i", &sz))
             return -1;
         if (self->g) {
