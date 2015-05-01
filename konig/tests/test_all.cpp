@@ -1,4 +1,4 @@
-#include "../include/konig.hpp"
+#include "../include/graph.hpp"
 
 int main(){
 	RangeSampler sampler(10, 0, 100);
