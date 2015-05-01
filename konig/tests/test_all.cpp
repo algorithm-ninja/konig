@@ -8,8 +8,8 @@ int main(){
 
 	IotaLabeler labeler;
 	NoWeighter weighter;
-    UndirectedGraph<int> g(100000, labeler, weighter);
-    g.add_edges(100000);
+    UndirectedGraph<int> g(10, labeler, weighter);
+    g.add_edges(5);
     g.connect();
     std::cout << g << std::endl;
 }

@@ -6,10 +6,12 @@
 #include <sstream>
 #include <numeric>
 #include <cmath>
-#include "../cpp-btree/btree_set.h"
+#include "btree_set.h"
 
 typedef size_t vertex_t;
-typedef struct{vertex_t tail, head;} edge_t;
+typedef struct {
+    vertex_t tail, head;
+} edge_t;
 
 template<typename T>
 class Weighter;
@@ -18,31 +20,31 @@ bool operator<(const edge_t& a, const edge_t& b) {
     return a.tail < b.tail || (a.tail == b.tail && a.head < b.head);
 }
 
-class TooManyEdgesException: public std::exception {
+class TooManyEdgesException : public std::exception {
     virtual const char* what() const noexcept {
         return "You specified too many edges!";
     }
 };
 
-class TooFewEdgesException: public std::exception {
+class TooFewEdgesException : public std::exception {
     virtual const char* what() const noexcept {
         return "You specified too few edges!";
     }
 };
 
-class TooFewNodesException: public std::exception {
-    virtual const char* what() const noexcept{
+class TooFewNodesException : public std::exception {
+    virtual const char* what() const noexcept {
         return "You specified too few nodes!";
     }
 };
 
-class TooManySamplesException: public std::exception {
+class TooManySamplesException : public std::exception {
     virtual const char* what() const noexcept {
         return "You specified too many values to sample from the given range!";
     }
 };
 
-class NotImplementedException: public std::exception {
+class NotImplementedException : public std::exception {
     virtual const char* what() const noexcept {
         return "This function is not implemented yet!";
     }
@@ -63,22 +65,22 @@ namespace Random {
         return w = w ^ (w >> 19) ^ (t ^ (t >> 8));
     }
 
-    void srand(int S) {
-        w = S;
+    void srand(unsigned int S) {
+        w = uint64_t(S);
         ::srand(S);
     }
 
     template<typename T1, typename T2>
     auto randrange(T1 bottom, T2 top)
-    -> typename std::enable_if<!std::is_integral<decltype(bottom+top) >::value,
-                               decltype(bottom+top)>::type {
-        return double(xor128())/rand_max * (top - bottom) + bottom;
+    -> typename std::enable_if<!std::is_integral<decltype(bottom + top)>::value,
+            decltype(bottom + top)>::type {
+        return double(xor128()) / rand_max * (top - bottom) + bottom;
     }
 
     template<typename T1, typename T2>
     auto randrange(T1 bottom, T2 top)
-    -> typename std::enable_if<std::is_integral< decltype(bottom+top) >::value,
-                               decltype(bottom+top)>::type {
+    -> typename std::enable_if<std::is_integral<decltype(bottom + top)>::value,
+            decltype(bottom + top)>::type {
         return xor128() % (top - bottom) + bottom;
     }
 }
@@ -86,15 +88,15 @@ namespace Random {
 namespace utils {
     template<typename T>
     void write_weight(
-        Weighter<T>& weighter,
-        const edge_t& edge,
-        std::ostream& os
+            Weighter<T>& weighter,
+            const edge_t& edge,
+            std::ostream& os
     ) {
         os << " " << weighter(edge);
     }
 
     template<>
-    void write_weight(Weighter<void>&, const edge_t&, std::ostream&) {}
+    void write_weight(Weighter<void>&, const edge_t&, std::ostream&) { }
 }
 
 /**
@@ -106,7 +108,7 @@ class Labeler {
 public:
     typedef T label_t;
 
-    virtual ~Labeler() {}
+    virtual ~Labeler() { }
 
     /**
      *  label takes as argument the index of the node, and
@@ -120,23 +122,24 @@ public:
  *  IotaLabeler is the simplest labeler. The label of the i-th vetex
  *  is simply the integer (i+start).
  */
-class IotaLabeler: public virtual Labeler<int> {
+class IotaLabeler : public virtual Labeler<int> {
 private:
     int start;
 
 public:
-    IotaLabeler(int start = 0): start(start) {}
-    ~IotaLabeler() {}
+    IotaLabeler(int start = 0) : start(start) { }
+
+    ~IotaLabeler() { }
 
     int operator()(const vertex_t i) override {
-        return start + i;
+        return (int) (start + i);
     }
 };
 
 /**
  *  RandIntLabeler assigns random labels from a given range
  */
-class RandIntLabeler: public virtual Labeler<int> {
+class RandIntLabeler : public virtual Labeler<int> {
 private:
     std::vector<int> labels;
 
@@ -145,11 +148,14 @@ public:
      *  Define the sample range [start, end)
      */
     RandIntLabeler(int start, int end) {
+        assert(start <= end); //FIXME
+
         labels.resize(end - start);
         std::iota(labels.begin(), labels.end(), start);
         std::random_shuffle(labels.begin(), labels.end());
     }
-    ~RandIntLabeler() {}
+
+    ~RandIntLabeler() { }
 
     int operator()(const vertex_t i) {
         return labels.at(i);
@@ -160,13 +166,14 @@ public:
  *  StaticLabeler assigns labels from a given vector
  */
 template<typename T>
-class StaticLabeler: public Labeler<T> {
+class StaticLabeler : public Labeler<T> {
 private:
     std::vector<T>& labels;
 
 public:
-    StaticLabeler(const std::vector<T>& labels): labels(labels) {}
-    ~StaticLabeler() {}
+    StaticLabeler(const std::vector<T>& labels) : labels(labels) { }
+
+    ~StaticLabeler() { }
 
     T operator()(const vertex_t i) {
         return labels.at(i);
@@ -182,7 +189,7 @@ class Weighter {
 public:
     typedef T weight_t;
 
-    virtual ~Weighter() {}
+    virtual ~Weighter() { }
 
     /**
      *  takes as arguments two vertex_t, corresponding to the tail and
@@ -199,25 +206,26 @@ public:
  *  from a given range of values
  */
 template<typename T>
-class RandomWeighter: public Weighter<T> {
+class RandomWeighter : public Weighter<T> {
 private:
     T min, max; // Define the range
 
 public:
-    RandomWeighter(T min, T max): min(min), max(max) {};
-    ~RandomWeighter() {};
+    RandomWeighter(T min, T max) : min(min), max(max) { };
+
+    ~RandomWeighter() { };
 
     T operator()(const edge_t&) {
-        return randrange(min, max);
+        return Random::randrange(min, max);
     }
 };
 
 /**
  *  NoWeighter is a dummy weighter. It throws if called
  */
-class NoWeighter: public Weighter<void> {
+class NoWeighter : public Weighter<void> {
 public:
-    ~NoWeighter() {};
+    ~NoWeighter() { };
 
     void operator()(const edge_t&) {
         // TODO: Define a proper exception
@@ -243,10 +251,10 @@ public:
      *  @param excl an optional vector of undesired values
      */
     RangeSampler(
-        const size_t sample_size,
-        const int64_t min,
-        const int64_t max,
-        std::vector<int64_t> excl = std::vector<int64_t>()
+            const size_t sample_size,
+            const int64_t min,
+            const int64_t max,
+            std::vector<int64_t> excl = std::vector<int64_t>()
     ) {
         if (!std::is_sorted(excl.begin(), excl.end()))
             std::sort(excl.begin(), excl.end());
@@ -308,11 +316,11 @@ protected:
      *                       number as rank
      */
     void add_random_edges(
-        const size_t edges_no,
-        const size_t max_edges,
-        const std::function<bool(const edge_t)> is_valid,
-        const std::function<uint64_t(const edge_t)> edge_to_rank,
-        const std::function<edge_t(const uint64_t)> rank_to_edge
+            const size_t edges_no,
+            const size_t max_edges,
+            const std::function<bool(const edge_t)> is_valid,
+            const std::function<uint64_t(const edge_t)> edge_to_rank,
+            const std::function<edge_t(const uint64_t)> rank_to_edge
     ) {
         // We remove the existing edges from the range of edges that
         // RangeSampler will choose from.
@@ -329,15 +337,15 @@ protected:
     }
 
     std::string _to_string(
-        const std::function<bool(const edge_t)> is_valid
+            const std::function<bool(const edge_t)> is_valid
     ) const {
         std::ostringstream oss;
         std::vector<edge_t> valid_edges;
         std::copy_if(
-            adj_list.begin(),
-            adj_list.end(),
-            std::back_inserter(valid_edges),
-            is_valid
+                adj_list.begin(),
+                adj_list.end(),
+                std::back_inserter(valid_edges),
+                is_valid
         );
         std::random_shuffle(valid_edges.begin(), valid_edges.end());
         oss << vertices_no << " " << valid_edges.size() << "\n";
@@ -356,17 +364,20 @@ public:
      *  @param vertices_no number of vertices of the graph
      */
     Graph(
-        const size_t vertices_no,
-        Labeler<label_t>& labeler,
-        Weighter<weight_t>& weighter
-    ): vertices_no(vertices_no), labeler(labeler), weighter(weighter) { }
+            const size_t vertices_no,
+            Labeler<label_t>& labeler,
+            Weighter<weight_t>& weighter
+    ) : vertices_no(vertices_no), labeler(labeler), weighter(weighter) { }
 
-    virtual ~Graph() {};
+    virtual ~Graph() { };
 
     // Interface methods
     virtual void add_edge(const vertex_t a, const vertex_t b) = 0;
+
     virtual std::string to_string() const = 0;
+
     virtual void connect() = 0;
+
     virtual void add_edges(const size_t edges_t) = 0;
 
     void add_edge(const edge_t& v) {
@@ -376,18 +387,18 @@ public:
     void build_forest(size_t edges_no) {
         if (edges_no > vertices_no - 1)
             throw TooManyEdgesException();
-        for(vertex_t v: RangeSampler(edges_no, 0, vertices_no-1))
-            add_edge(Random::randrange(0, v+1), v+1);
+        for (vertex_t v: RangeSampler(edges_no, 0, vertices_no - 1))
+            add_edge(Random::randrange(0, v + 1), v + 1);
     }
 
     void build_path() {
-        for(vertex_t i = 0; i < vertices_no - 1; i++)
-            add_edge(i, i+1);
+        for (vertex_t i = 0; i < vertices_no - 1; i++)
+            add_edge(i, i + 1);
     }
 
     void build_cycle() {
-        for(vertex_t i = 0; i < vertices_no - 1; i++)
-            add_edge(i, i+1);
+        for (vertex_t i = 0; i < vertices_no - 1; i++)
+            add_edge(i, i + 1);
         add_edge(vertices_no - 1, 0);
     }
 
@@ -396,27 +407,27 @@ public:
     }
 
     void build_star() {
-        for(vertex_t i=1; i<vertices_no; i++)
+        for (vertex_t i = 1; i < vertices_no; i++)
             add_edge(0, i);
     }
 
     void build_wheel() {
-        for(vertex_t i=1; i<vertices_no; i++) {
-            add_edge(i-1, i);
+        for (vertex_t i = 1; i < vertices_no; i++) {
+            add_edge(i - 1, i);
             add_edge(0, i);
         }
         add_edge(vertices_no, 0);
     }
 
     void build_clique() {
-        for(vertex_t i=0; i<vertices_no; i++)
-            for(vertex_t j=i+1; j<vertices_no; j++)
+        for (vertex_t i = 0; i < vertices_no; i++)
+            for (vertex_t j = i + 1; j < vertices_no; j++)
                 add_edge(i, j);
     }
- 
+
     friend std::ostream& operator<<(
-        std::ostream& os,
-        const Graph<label_t, weight_t>& g
+            std::ostream& os,
+            const Graph<label_t, weight_t>& g
     ) {
         return os << g.to_string();
     }
@@ -432,10 +443,10 @@ private:
     size_t N;
 
 public:
-    DisjointSet(const size_t N): N(N) {
+    DisjointSet(const size_t N) : N(N) {
         parent = new size_t[N];
         rank = new size_t[N]();
-        for (size_t i=0; i<N; i++)
+        for (size_t i = 0; i < N; i++)
             parent[i] = i;
     }
 
@@ -469,7 +480,7 @@ public:
 
 
 template<typename label_t, typename weight_t = void>
-class UndirectedGraph: public Graph<label_t, weight_t> {
+class UndirectedGraph : public Graph<label_t, weight_t> {
 private:
     using Graph<label_t, weight_t>::adj_list;
     using Graph<label_t, weight_t>::labeler;
@@ -481,7 +492,7 @@ private:
 public:
     using Graph<label_t, weight_t>::Graph;
 
-    ~UndirectedGraph() {};
+    ~UndirectedGraph() { };
 
     void add_edge(const vertex_t tail, const vertex_t head) override {
         adj_list.insert({tail, head});
@@ -510,8 +521,8 @@ public:
         // number of connected components in the graph. A representative is a
         // randomly chosen vertex among the vertices forming its connected
         // component
-        std::vector<vertex_t> repr = { vertices[0] };
-        for(size_t i = 1; i < vertices_no; i++) {
+        std::vector<vertex_t> repr = {vertices[0]};
+        for (size_t i = 1; i < vertices_no; i++) {
             if (connected_components.merge(vertices[0], vertices[i])) {
                 repr.push_back(vertices[i]);
             }
@@ -528,27 +539,27 @@ public:
         };
 
         auto edge_to_rank = [](edge_t e) -> uint64_t {
-            return (uint64_t)e.tail*(e.tail+1)/2 + e.head;
+            return (uint64_t) e.tail * (e.tail + 1) / 2 + e.head;
         };
 
         auto rank_to_edge = [](uint64_t rank) -> edge_t {
             edge_t e;
-            e.tail = round(sqrt(2*(rank+1)));
-            e.head = rank - e.tail*(e.tail-1)/2;
+            e.tail = round(sqrt(2 * (rank + 1)));
+            e.head = rank - e.tail * (e.tail - 1) / 2;
             return e;
         };
         add_random_edges(
-            edges_no,
-            vertices_no*(vertices_no-1)/2,
-            is_valid,
-            edge_to_rank,
-            rank_to_edge
+                edges_no,
+                vertices_no * (vertices_no - 1) / 2,
+                is_valid,
+                edge_to_rank,
+                rank_to_edge
         );
     }
 };
 
 template<typename label_t, typename weight_t = void>
-class DirectedGraph: public Graph<label_t, weight_t> {
+class DirectedGraph : public Graph<label_t, weight_t> {
 private:
     using Graph<label_t, weight_t>::adj_list;
     using Graph<label_t, weight_t>::labeler;
@@ -560,7 +571,7 @@ private:
 public:
     using Graph<label_t, weight_t>::Graph;
 
-    ~DirectedGraph() {};
+    ~DirectedGraph() { };
 
     void add_edge(const vertex_t tail, const vertex_t head) override {
         adj_list.insert({tail, head});
@@ -580,22 +591,22 @@ public:
         };
 
         auto edge_to_rank = [&](edge_t e) -> uint64_t {
-            return (uint64_t)e.tail*(vertices_no-1) + e.head - (e.head>e.tail);
+            return (uint64_t) e.tail * (vertices_no - 1) + e.head - (e.head > e.tail);
         };
 
         auto rank_to_edge = [&](uint64_t rank) -> edge_t {
             edge_t e;
-            e.tail = rank / (vertices_no-1);
-            e.head = rank - e.tail*(vertices_no-1);
+            e.tail = rank / (vertices_no - 1);
+            e.head = rank - e.tail * (vertices_no - 1);
             if (e.head >= e.tail) e.head++;
             return e;
         };
         add_random_edges(
-            edges_no,
-            vertices_no*(vertices_no-1),
-            is_valid,
-            edge_to_rank,
-            rank_to_edge
+                edges_no,
+                vertices_no * (vertices_no - 1),
+                is_valid,
+                edge_to_rank,
+                rank_to_edge
         );
     }
 
@@ -605,21 +616,21 @@ public:
         };
 
         auto edge_to_rank = [](edge_t e) -> uint64_t {
-            return (uint64_t)e.tail*(e.tail+1)/2 + e.head;
+            return (uint64_t) e.tail * (e.tail + 1) / 2 + e.head;
         };
 
         auto rank_to_edge = [](uint64_t rank) -> edge_t {
             edge_t e;
-            e.tail = round(sqrt(2*(rank+1)));
-            e.head = rank - e.tail*(e.tail-1)/2;
+            e.tail = round(sqrt(2 * (rank + 1)));
+            e.head = rank - e.tail * (e.tail - 1) / 2;
             return e;
         };
         add_random_edges(
-            edges_no,
-            vertices_no*(vertices_no-1)/2,
-            is_valid,
-            edge_to_rank,
-            rank_to_edge
+                edges_no,
+                vertices_no * (vertices_no - 1) / 2,
+                is_valid,
+                edge_to_rank,
+                rank_to_edge
         );
     }
 
