@@ -9,6 +9,14 @@ namespace konig {
 
     };
 
+    class StructureViolation : public Exception {
+
+    };
+
+    class InvalidArgument : public Exception {
+
+    };
+
 };
 
 #endif //KONIG_EXCEPTION_HPP
