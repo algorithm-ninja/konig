@@ -2,9 +2,12 @@
 #define KONIG_EDGEMANAGER_HPP
 
 namespace konig {
-    class EdgeManager {
+
+    template<typename weight_t>
+    class StructureManager {
 
     };
+
 };
 
 #endif //KONIG_EDGEMANAGER_HPP

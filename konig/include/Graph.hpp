@@ -1,8 +1,6 @@
 #ifndef KONIG_GRAPH_HPP
 #define KONIG_GRAPH_HPP
 
-#include <stdexcept>
-
 namespace konig {
 
     template<typename vertex_t, typename weight_t>

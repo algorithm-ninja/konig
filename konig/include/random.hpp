@@ -4,6 +4,7 @@
 #include <exception>
 
 namespace konig {
+    
     namespace random {
         std::random_device random_device;
         std::mt19937_64 random_generator(random_device());
