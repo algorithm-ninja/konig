@@ -4,8 +4,9 @@
 #include <iterator>
 #include <memory>
 #include <vector>
-
+#include <cassert>
 #include "util.hpp"
+#include "Exception.hpp"
 
 namespace konig {
 
@@ -22,32 +23,37 @@ namespace konig {
 
             adjacency_t(adjacency_endpoints_t endpoints, weight_t weight)
                     : endpoints(endpoints), weight(weight) { }
-
-            bool operator<(const adjacency_t& other) const {
-                return endpoints < other.endpoints;
-            }
         };
 
         class AdjSplayTree {
+            // Defined types
         public:
             /**
-             * @brief Splay tree node model.
+             * @brief Splay tree vertex model.
              *
-             * A AdjSplayNode contains the fields required by our augmented splay tree to locate
+             * A AdjSplayVertex contains the fields required by our augmented splay tree to locate
              * edges by rank.
              */
-            struct AdjSplayNode {
+            struct AdjSplayVertex {
+                friend class AdjSplayTree;
+
+                // Members
+            private:
                 // Node pointers
-                AdjSplayNode* parent;
-                AdjSplayNode* left_child;
-                AdjSplayNode* right_child;
+                AdjSplayVertex* parent = NULL;
+                AdjSplayVertex* left_child = NULL;
+                AdjSplayVertex* right_child = NULL;
 
                 // BBST Augmentation
-                size_t subtree_size;
-                size_t left_subtree_size;
+                size_t subtree_size = 1;
+                size_t left_subtree_size = 0;
+
+            public:
                 adjacency_t adjacency;
 
-                void on_update() {
+                // Methods
+            private:
+                void update() noexcept {
                     subtree_size = 1;
                     left_subtree_size = 0;
 
@@ -59,176 +65,389 @@ namespace konig {
                         subtree_size += right_child->subtree_size;
                     }
                 }
+
+            public:
+                AdjSplayVertex(adjacency_t adjacency) : adjacency(adjacency) { }
+
             };
 
+            // Members
+        private:
+            AdjSplayVertex* tree_root = NULL;
+
             // Methods
-            static bool is_root(AdjSplayNode* node) {
-                return !node->parent;
+        private:
+            /**
+             * @brief Checks whether `vertex` is the current root of the splay tree.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            bool is_root(AdjSplayVertex* const vertex) const noexcept {
+                assert(vertex);
+                return !vertex->parent;
             }
 
-            static bool is_left_child(AdjSplayNode* node) {
-                if (is_root(node))
+            AdjSplayVertex* root() const noexcept {
+                return tree_root;
+            }
+
+            /**
+             * @brief Checks whether `vertex` is a left child.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            bool is_left_child(AdjSplayVertex* const vertex) const noexcept {
+                assert(vertex);
+                if (is_root(vertex))
                     return false;
-                return node->parent->left_child == node;
+                return vertex->parent->left_child == vertex;
             }
 
-            static bool is_right_child(AdjSplayNode* node) {
-                if (is_root(node))
+            /**
+             * @brief Checks whether `vertex` is a right child.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            bool is_right_child(AdjSplayVertex* const vertex) const noexcept {
+                assert(vertex);
+                if (is_root(vertex))
                     return false;
-                return node->parent->right_child == node;
+                return vertex->parent->right_child == vertex;
             }
 
-            static void rotate_right(AdjSplayNode* node) {
-                AdjSplayNode* left_child = node->left_child;
+            /**
+             * @brief Returns a pointer to the minimum-key vertex in the subtree rooted in `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            AdjSplayVertex* minimum(AdjSplayVertex* const vertex) const noexcept {
+                assert(vertex);
+                auto ans = vertex;
+                while (ans->left_child)
+                    ans = ans->left_child;
+                return ans;
+            }
+
+            /**
+             * @brief Returns a pointer to the maximum-key vertex in the subtree rooted in `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            AdjSplayVertex* maximum(AdjSplayVertex* const vertex) const noexcept {
+                assert(vertex);
+                auto ans = vertex;
+                while (ans->right_child)
+                    ans = ans->right_child;
+                return ans;
+            }
+
+            /**
+             * @brief Performs a right (clockwise) tree rotation around `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            void rotate_right(AdjSplayVertex* const vertex) noexcept {
+                assert(vertex);
+                AdjSplayVertex* left_child = vertex->left_child;
 
                 if (left_child) {
-                    node->left_child = left_child->right_child;
+                    vertex->left_child = left_child->right_child;
                     if (left_child->right_child)
-                        left_child->right_child->parent = node;
-                    left_child->parent = node->parent;
-                    left_child->right_child = node;
+                        left_child->right_child->parent = vertex;
+                    left_child->parent = vertex->parent;
+                    left_child->right_child = vertex;
                 }
-                if (node->parent) {
-                    if (is_left_child(node))
-                        node->parent->left_child = left_child;
+                if (vertex->parent) {
+                    if (is_left_child(vertex))
+                        vertex->parent->left_child = left_child;
                     else
-                        node->parent->right_child = left_child;
+                        vertex->parent->right_child = left_child;
                 }
-                node->parent = left_child;
+                vertex->parent = left_child;
 
-                node->on_update();
+                vertex->update();
                 if (left_child)
-                    left_child->on_update();
+                    left_child->update();
+
+                if (is_root(left_child))
+                    tree_root = left_child;
             }
 
-            static void rotate_left(AdjSplayNode* node) {
-                AdjSplayNode* right_child = node->right_child;
+            /**
+             * @brief Performs a left (counterclockwise) tree rotation around `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            void rotate_left(AdjSplayVertex* const vertex) noexcept {
+                assert(vertex);
+                AdjSplayVertex* right_child = vertex->right_child;
 
                 if (right_child) {
-                    node->right_child = right_child->left_child;
+                    vertex->right_child = right_child->left_child;
                     if (right_child->left_child)
-                        right_child->left_child->parent = node;
-                    right_child->parent = node->parent;
-                    right_child->left_child = node;
+                        right_child->left_child->parent = vertex;
+                    right_child->parent = vertex->parent;
+                    right_child->left_child = vertex;
                 }
-                if (node->parent) {
-                    if (is_left_child(node))
-                        node->parent->left_child = right_child;
+                if (vertex->parent) {
+                    if (is_left_child(vertex))
+                        vertex->parent->left_child = right_child;
                     else
-                        node->parent->right_child = right_child;
+                        vertex->parent->right_child = right_child;
                 }
-                node->parent = right_child;
+                vertex->parent = right_child;
 
-                node->on_update();
+                vertex->update();
                 if (right_child)
-                    right_child->on_update();
+                    right_child->update();
+
+                if (is_root(right_child))
+                    tree_root = right_child;
             }
 
-            static void splay(AdjSplayNode* node) {
-                while (!is_root(node)) {
-                    if (is_root(node->parent)) { // Zig step
-                        if (is_left_child(node))
-                            rotate_right(node->parent);
+            /**
+             * @brief Reroots the splay tree in `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            void splay(AdjSplayVertex* const vertex) noexcept {
+                assert(vertex);
+                while (!is_root(vertex)) {
+                    if (is_root(vertex->parent)) { // Zig step
+                        if (is_left_child(vertex))
+                            rotate_right(vertex->parent);
                         else
-                            rotate_left(node->parent);
+                            rotate_left(vertex->parent);
                     }
-                    else if (is_left_child(node) && is_left_child(node->parent)) { // Zig-zig step (left)
-                        rotate_right(node->parent->parent);
-                        rotate_right(node->parent);
+                    else if (is_left_child(vertex) && is_left_child(vertex->parent)) { // Zig-zig step (left)
+                        rotate_right(vertex->parent->parent);
+                        rotate_right(vertex->parent);
                     }
-                    else if (is_right_child(node) && is_right_child(node->parent)) { // Zig-zig step (right)
-                        rotate_left(node->parent->parent);
-                        rotate_left(node->parent);
+                    else if (is_right_child(vertex) && is_right_child(vertex->parent)) { // Zig-zig step (right)
+                        rotate_left(vertex->parent->parent);
+                        rotate_left(vertex->parent);
                     }
-                    else if (is_left_child(node) && is_right_child(node->parent)) { // Zig-zag step (left-right)
-                        rotate_right(node->parent);
-                        rotate_left(node->parent);
+                    else if (is_left_child(vertex) && is_right_child(vertex->parent)) { // Zig-zag step (left-right)
+                        rotate_right(vertex->parent);
+                        rotate_left(vertex->parent);
                     }
                     else { // Zig-zag step (right-left)
-                        rotate_left(node->parent);
-                        rotate_right(node->parent);
+                        rotate_left(vertex->parent);
+                        rotate_right(vertex->parent);
                     }
                 }
+                tree_root = vertex;
             }
 
-            static AdjSplayNode* leftmost(AdjSplayNode* node) {
-                while (node->left_child)
-                    node = node->left_child;
-                return node;
+            /**
+             * @brief Joins two disjoint trees.
+             *
+             * Keys belonging to the tree containing `v` *must* be greater than or equal to all the keys belonging to the
+             * tree containing `u`.
+             */
+            void join(AdjSplayVertex* const u, AdjSplayVertex* const v) noexcept {
+                assert(is_root(u) && is_root(v));
+                auto max_u = maximum(u);
+
+                splay(max_u);
+                max_u->right_child = v;
+                v->parent = max_u;
+                max_u->update();
+
+                tree_root = max_u;
             }
 
-            static AdjSplayNode* rightmost(AdjSplayNode* node) {
-                while (node->right_child)
-                    node = node->right_child;
-                return node;
+            /**
+            * @brief Splits the tree at `vertex`.
+            *
+            * This creates two trees, one containing all vertices up to `vertex` (inclusive), and the other
+            * containing vertices from `successor(vertex)` onwards.
+            */
+            void split(AdjSplayVertex* vertex) noexcept {
+                splay(vertex);
+                if (vertex->right_child)
+                    vertex->right_child->parent = NULL;
+                vertex->right_child = NULL;
+                vertex->update();
             }
 
-            static AdjSplayNode* root(AdjSplayNode* node) {
-                while (!is_root(node))
-                    node = node->parent;
-                return node;
+        public:
+            /**
+             * @brief Returns a pointer to the minimum (leftmost) element in the splay tree.
+             */
+            AdjSplayVertex* minimum() const noexcept {
+                if (root())
+                    return minimum(root());
+                else
+                    return NULL;
             }
 
-            static AdjSplayNode* successor(AdjSplayNode* node) {
-                splay(node);
-                return leftmost(node->right_child);
+            /**
+             * @brief Returns a pointer to the maximum (rightmost) element in the splay tree.
+             */
+            AdjSplayVertex* maximum() const noexcept {
+                if (root())
+                    return maximum(root());
+                else
+                    return NULL;
             }
 
-            static AdjSplayNode* nth_successor(AdjSplayNode* node, size_t increment) {
-                //FIXME: Implement this efficiently, using select
-                for (; increment; --increment)
-                    node = successor(node);
-                return node;
+            /**
+             * @brief Returns the rank of `vertex`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            size_t rank(AdjSplayVertex* vertex) noexcept {
+                assert(vertex);
+                splay(vertex);
+                return 1 + vertex->left_subtree_size;
             }
 
-            static AdjSplayNode* predecessor(AdjSplayNode* node) {
-                splay(node);
-                return rightmost(node->left_child);
-            }
-
-            static AdjSplayNode* nth_predecessort(AdjSplayNode* node, size_t decrement) {
-                //FIXME: Implement this efficiently, using select
-                for (; decrement; --decrement)
-                    node = predecessor(node);
-                return node;
-            }
-
-            static size_t rank(AdjSplayNode* node) {
-                splay(node);
-                return 1 + node->left_subtree_size;
-            }
-
-            static size_t select(AdjSplayNode* node, size_t rank) {
-                node = root(node);
-                while (node && rank) {
-                    if (node->left_subtree_size >= rank) {
-                        node = node->left_child;
+            /**
+             * @brief Returns the vertex whose rank is `rank`.
+             */
+            AdjSplayVertex* select(size_t rank) noexcept {
+                auto vertex = root();
+                while (vertex && rank) {
+                    if (vertex->left_subtree_size >= rank) {
+                        vertex = vertex->left_child;
+                    } else if (vertex->left_subtree_size < rank - 1) {
+                        rank -= 1 + vertex->left_subtree_size;
+                        vertex = vertex->right_child;
                     } else {
-                        rank -= 1 + node->left_subtree_size;
-                        node = node->right_child;
+                        rank = 0;
                     }
                 }
-                return node;
+                return vertex;
             }
 
-            static void erase(AdjSplayNode* node) {
-                splay(node);
-                if (!node->left_child) {
-                    if (node->right_child)
-                        node->right_child->parent = NULL;
+            /**
+             * @brief Returns the pointer to the vertex whose rank is `rank(vertex) + delta`.
+             *
+             * @pre `vertex` in *not* NULL
+             */
+            AdjSplayVertex* advance(AdjSplayVertex* vertex, std::ptrdiff_t delta) noexcept {
+                assert(vertex);
+                return select(rank(vertex) + delta);
+            }
+
+            /**
+             * @brief Returns the leftmost node that evaluates as >= endpoints
+             */
+            AdjSplayVertex* lower_bound(adjacency_endpoints_t endpoints) noexcept {
+                AdjSplayVertex* vertex = root();
+                AdjSplayVertex* cut_point = NULL;
+
+                while (vertex) {
+                    if (vertex->adjacency.endpoints >= endpoints) {
+                        cut_point = vertex;
+                        vertex = vertex->left_child;
+
+                        if (vertex->adjacency.endpoints == endpoints) // There are no duplicates in this structure
+                            break;
+                    } else {
+                        vertex = vertex->right_child;
+                    }
                 }
-                else if (!node->right_child) {
-                    if (node->left_child)
-                        node->left_child->parent = NULL;
+
+                if (cut_point)
+                    splay(cut_point);
+                return cut_point;
+            }
+
+            /**
+             * @brief Returns the leftmost node that evaluates as > endpoints
+             */
+            AdjSplayVertex* upper_bound(adjacency_endpoints_t endpoints) noexcept {
+                AdjSplayVertex* vertex = root();
+                AdjSplayVertex* cut_point = NULL;
+
+                while (vertex) {
+                    if (vertex->adjacency.endpoints > endpoints) {
+                        cut_point = vertex;
+                        vertex = vertex->left_child;
+                    } else {
+                        vertex = vertex->right_child;
+                    }
+                }
+
+                if (cut_point)
+                    splay(cut_point);
+                return cut_point;
+            }
+
+            /**
+             * @brief Checks whether the tree contains a vertex having key `endpoints`.
+             */
+            bool has(adjacency_endpoints_t endpoints) noexcept {
+                auto key_lower_bound = lower_bound(endpoints);
+
+                return (key_lower_bound && key_lower_bound->adjacency.endpoints == endpoints);
+            }
+
+            AdjSplayVertex* find(AdjacencyManager* vertex, adjacency_endpoints_t endpoints) noexcept {
+                return lower_bound(vertex, endpoints);
+            }
+
+            /**
+             * @brief Creates a new vertex corresponding to the given adjacency and returns the pointer
+             * to the newly created vertex.
+             */
+            AdjSplayVertex* insert(adjacency_t adjacency) noexcept {
+                AdjSplayVertex* new_vertex = new AdjSplayVertex(adjacency);
+
+                if (root()) {
+                    auto cut_point = lower_bound(adjacency.endpoints);
+
+                    if (cut_point) {
+                        auto prev = advance(cut_point, -1);
+                        if (prev) {
+                            split(prev);
+                            join(new_vertex, cut_point);
+                            join(prev, new_vertex);
+                        } else {
+                            join(new_vertex, cut_point);
+                        }
+                    } else {
+                        join(root(), new_vertex);
+                    }
+
+                    assert(is_root(root()));
+                }
+
+                splay(new_vertex);
+                return new_vertex;
+            }
+
+            /**
+             * @brief Deletes `vertex` from the tree.
+             */
+            void erase(AdjSplayVertex* vertex) noexcept {
+                splay(vertex);
+                if (!vertex->left_child) {
+                    if (vertex->right_child)
+                        vertex->right_child->parent = NULL;
+
+                    tree_root = vertex->right_child;
+                }
+                else if (!vertex->right_child) {
+                    if (vertex->left_child)
+                        vertex->left_child->parent = NULL;
+
+                    tree_root = vertex->left_child;
                 }
                 else {
-                    node->left_child->parent = NULL;
-                    node->right_child->parent = NULL;
-                    join(node->left_child, node->right_child);
-                    node->left_child = node->right_child = NULL;
+                    vertex->left_child->parent = NULL;
+                    vertex->right_child->parent = NULL;
+
+                    join(vertex->left_child, vertex->right_child);
+                    vertex->left_child = vertex->right_child = NULL;
                 }
+
+                assert(is_root(root()));
+                delete vertex;
             }
-        };
+        } adj_splay_tree;
 
         /**
          * @brief Iterator over the (weighted) adjacencies.
@@ -237,112 +456,155 @@ namespace konig {
         class iterator : std::iterator<std::random_access_iterator_tag, adjacency_t> {
             friend class AdjacencyManager;
 
-            using AdjSplayNode = typename AdjSplayTree::AdjSplayNode;
+            using AdjSplayVertex = typename AdjSplayTree::AdjSplayVertex;
 
         private:
             AdjacencyManager& am_instance;
-            AdjSplayNode* splay_node;
+            AdjSplayVertex* splay_vertex;
 
-            iterator(AdjacencyManager& am_instance, AdjSplayNode* splay_node)
-                    : am_instance(am_instance), splay_node(splay_node) { }
+            iterator(AdjacencyManager& am_instance, AdjSplayVertex* splay_vertex)
+                    : am_instance(am_instance), splay_vertex(splay_vertex) { }
 
         public:
             iterator(const iterator& other) : am_instance(other.am_instance) {
-                splay_node = other.splay_node;
+                splay_vertex = other.splay_vertex;
             }
 
-            adjacency_t& operator*() const {
-                return splay_node->adjacency;
+            adjacency_t& operator*() const noexcept {
+                return splay_vertex->adjacency;
             }
 
-            const iterator& operator++() {
-                splay_node = AdjSplayTree::successor(splay_node);
+            adjacency_t* operator->() const noexcept {
+                return &(splay_vertex->adjacency);
+            }
+
+            const iterator& operator++() noexcept {
+                *(this) += 1;
                 return *this;
             }
 
-            iterator operator++(int) {
+            iterator operator++(int) noexcept {
                 iterator copy(*this);
                 ++(*this);
                 return copy;
             }
 
-            const iterator& operator--() {
-                splay_node = AdjSplayTree::predecessor(splay_node);
+            const iterator& operator--() noexcept {
+                *(this) -= 1;
                 return *this;
             }
 
-            iterator operator--(int) {
+            iterator operator--(int) noexcept {
                 iterator copy(*this);
                 --(*this);
                 return copy;
             }
 
-            bool operator==(const iterator& other) const {
-                return splay_node->adjacency.endpoints == other.splay_node->adjacency.endpoints;
+            bool operator==(const iterator& other) const noexcept {
+                if (splay_vertex == NULL || other.splay_vertex == NULL)
+                    return splay_vertex == other.splay_vertex;
+                else
+                    return splay_vertex->adjacency.endpoints == other.splay_vertex->adjacency.endpoints;
             }
 
-            bool operator!=(const iterator& other) const {
-                return splay_node->adjacency.endpoints != other.splay_node->adjacency.endpoints;
+            bool operator!=(const iterator& other) const noexcept {
+                if (splay_vertex == NULL || other.splay_vertex == NULL)
+                    return splay_vertex != other.splay_vertex;
+                else
+                    return splay_vertex->adjacency.endpoints != other.splay_vertex->adjacency.endpoints;
             }
 
-            bool operator<(const iterator& other) const {
-                return splay_node->adjacency.endpoints < other.splay_node->adjacency.endpoints;
-            }
-
-            bool operator>(const iterator& other) const {
-                return splay_node->adjacency.endpoints > other.splay_node->adjacency.endpoints;
-            }
-
-            bool operator<=(const iterator& other) const {
-                return splay_node->adjacency.endpoints <= other.splay_node->adjacency.endpoints;
-            }
-
-            bool operator>=(const iterator& other) const {
-                return splay_node->adjacency.endpoints >= other.splay_node->adjacency.endpoints;
-            }
-
-            iterator& operator+(const size_t& increment) const {
+            iterator& operator+(const size_t increment) const noexcept {
                 iterator copy(*this);
                 copy += increment;
                 return copy;
             }
 
-            iterator& operator+=(const size_t& increment) {
-                splay_node = AdjSplayTree::nth_successor(splay_node, increment);
+            iterator& operator+=(const size_t increment) noexcept {
+                splay_vertex = am_instance.adj_splay_tree.advance(splay_vertex, increment);
                 return *this;
             }
 
-            iterator& operator-(const size_t& decrement) const {
+            iterator& operator-(const size_t decrement) const noexcept {
                 iterator copy(*this);
                 copy -= decrement;
                 return copy;
             }
 
-            iterator& operator-=(const size_t& decrement) {
-                splay_node = AdjSplayTree::nth_predecessor(splay_node, decrement);
+            iterator& operator-=(const size_t decrement) noexcept {
+                splay_vertex = am_instance.adj_splay_tree.advance(splay_vertex, -decrement);
                 return *this;
             }
         };
 
         // Members
     private:
-        std::vector<iterator> vertex_lower_bound;
+        std::vector<typename AdjSplayTree::AdjSplayVertex*> vertex_first_adj;
+        std::vector<typename AdjSplayTree::AdjSplayVertex*> vertex_last_adj;
 
-        size_t n_vertices;
-        size_t n_adjacencies;
+        size_t n_vertices = 0;
+        size_t n_adjacencies = 0;
 
         // Methods
     private:
+        bool is_valid_adjacency_endpoints(const adjacency_endpoints_t endpoints) const noexcept {
+            return (endpoints.first < n_vertices &&
+                    endpoints.second < n_vertices &&
+                    endpoints.first != endpoints.second);
+        }
+
+        bool is_valid_adjacency(const adjacency_t adjacency) const noexcept {
+            return is_valid_adjacency_endpoints(adjacency.endpoints);
+        }
+
+        iterator make_iterator(typename AdjSplayTree::AdjSplayVertex* ptr) const noexcept {
+            auto self = const_cast<AdjacencyManager*>(this);
+            return iterator(*self, ptr);
+        }
 
     public:
+        /**
+         * @brief Adds a vertex to the structure.
+         */
+        void push_vertex() {
+            ++n_vertices;
+            vertex_first_adj.resize(n_vertices, NULL);
+            vertex_last_adj.resize(n_vertices, NULL);
+        }
+
+        /*
+         * @brief Deletes the last vertex.
+         */
+        void pop_vertex() {
+            for (auto it = begin(n_vertices - 1); it != end(n_vertices - 1); ++it)
+                erase_adjacency(it);
+
+            --n_vertices;
+            vertex_first_adj.resize(n_vertices, NULL);
+            vertex_last_adj.resize(n_vertices, NULL);
+        }
 
         /**
-         * @brief Inserts adjacency in the AdjacencyManager.
+         * @brief Inserts a new adjacency.
          *
-         * @param w_adjacency A weighted adjacency
+         * @param adjacency A weighted adjacency
          */
-        void insert(const adjacency_t adjacency) {
+        void insert_adjacency(const adjacency_t adjacency) {
+            if (!is_valid_adjacency(adjacency))
+                throw InvalidArgument(context_info("invalid adjacency"));
+            if (adj_splay_tree.has(adjacency.endpoints))
+                throw InvalidArgument(context_info("duplicate adjacency"));
 
+            typename AdjSplayTree::AdjSplayVertex* new_adj = adj_splay_tree.insert(adjacency);
+
+            const vid_t u = adjacency.endpoints.first;
+            const vid_t v = adjacency.endpoints.second;
+
+            if (!vertex_first_adj[u] || vertex_first_adj[u]->adjacency.endpoints.first > v)
+                vertex_first_adj[u] = new_adj;
+            if (!vertex_last_adj[u] || vertex_last_adj[u]->adjacency.endpoints.second < v)
+                vertex_last_adj[u] = new_adj;
+            ++n_adjacencies;
         }
 
         /**
@@ -350,8 +612,14 @@ namespace konig {
          *
          * @param endpoints The endpoints of the adjacency to be deleted
          */
-        void erase(const adjacency_endpoints_t endpoints) {
+        void erase_adjacency(const adjacency_endpoints_t endpoints) {
+            if (!is_valid_adjacency_endpoints(endpoints))
+                throw InvalidArgument(context_info("invalid adjacency"));
+            if (!adj_splay_tree.has(endpoints))
+                throw InvalidArgument(context_info("missing adjacency"));
 
+            --n_adjacencies;
+            adj_splay_tree.erase(adj_splay_tree.find(endpoints));
         }
 
         /**
@@ -362,7 +630,7 @@ namespace konig {
          *
          * @param adjacency A weighted adjacency object
          */
-        void erase(const adjacency_t adjacency) {
+        void erase_adjacency(const adjacency_t adjacency) {
             erase(adjacency.endpoints);
         }
 
@@ -371,7 +639,7 @@ namespace konig {
          *
          * @param iter Iterator to the adjacency to be deleted
          */
-        void erase(const iterator iter) {
+        void erase_adjacency(const iterator iter) {
             erase(iter->endpoints);
         }
 
@@ -381,8 +649,10 @@ namespace konig {
          *
          * @param endpoints The endpoints of the adjacency
          */
-        iterator lower_bound(const adjacency_endpoints_t endpoints) noexcept {
+        iterator lower_bound(const adjacency_endpoints_t endpoints) {
+            auto vertex_lower_bound = adj_splay_tree.lower_bound(endpoints);
 
+            return make_iterator(vertex_lower_bound);
         }
 
         /**
@@ -394,7 +664,7 @@ namespace konig {
          *
          * @param adjacency A weighted adjacency object
          */
-        iterator lower_bound(const adjacency_t adjacency) noexcept {
+        iterator lower_bound(const adjacency_t adjacency) {
             return lower_bound(adjacency.endpoints);
         }
 
@@ -405,7 +675,7 @@ namespace konig {
          *
          * @param iter Iterator to the adjacency to be deleted
          */
-        iterator find(const adjacency_endpoints_t endpoints) noexcept {
+        iterator find(const adjacency_endpoints_t endpoints) {
             auto ans = lower_bound(endpoints);
             if (ans == end() || ans->endpoints != endpoints)
                 return end();
@@ -421,15 +691,15 @@ namespace konig {
          *
          * @param iter Iterator to the adjacency to be deleted
          */
-        iterator find(const adjacency_t adjacency) noexcept {
+        iterator find(const adjacency_t adjacency) {
             return find(adjacency.endpoints);
         }
 
         /**
          * @brief Returns an iterator to the first adjacency.
          */
-        iterator begin() const noexcept {
-            return begin(0);
+        iterator begin() const {
+            return make_iterator(adj_splay_tree.minimum());
         }
 
         /**
@@ -437,15 +707,18 @@ namespace konig {
          *
          * @param first The first endpoint
          */
-        iterator begin(const vid_t first) const noexcept {
-            return vertex_lower_bound[first];
+        iterator begin(const vid_t first) const {
+            if (first >= n_vertices)
+                throw InvalidArgument(context_info("the vertex is missing"));
+
+            return make_iterator(vertex_first_adj[first]);
         }
 
         /**
-         * @brief Returns an iterator referring to the past-the-end element.
+         * @brief Returns an iterator referring to the past-the-end adjacency.
          */
-        iterator end() const noexcept {
-            return end(n_vertices - 1);
+        iterator end() const {
+            return ++make_iterator(adj_splay_tree.maximum());
         }
 
         /**
@@ -454,21 +727,29 @@ namespace konig {
          *
          * @param first The first endpoint
          */
-        iterator end(const vid_t first) const noexcept {
+        iterator end(const vid_t first) const {
+            if (first >= n_vertices)
+                throw InvalidArgument(context_info("the vertex is missing"));
+
             if (first < n_vertices - 1) {
-                return vertex_lower_bound[first + 1];
+                return ++make_iterator(vertex_last_adj[first + 1]);
             } else {
-                auto self = const_cast<AdjacencyManager*>(this);
-                return iterator(*self, NULL);
+                return make_iterator(NULL);
             }
         }
 
-        iterator kth_present(const size_t k) noexcept {
-            return begin() + k;
+        iterator kth_present(const size_t k) {
+            if (k == 0 || k > n_adjacencies)
+                throw InvalidArgument(context_info("not enough adjacencies"));
+
+            return begin() + (k - 1);
         }
 
-        adjacency_t kth_absent(const size_t k) noexcept {
+        adjacency_t kth_absent(const size_t k) {
+            if (k == 0 || k > (n_vertices * (n_vertices - 1)) / 2)
+                throw InvalidArgument(context_info("not enough absent adjacencies"));
 
+            //TODO
         }
     };
 }
