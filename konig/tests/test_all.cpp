@@ -1,15 +1,6 @@
-#include "../include/graph.hpp"
+#define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
+#define KONIG_DEBUG
 
-int main(){
-	RangeSampler sampler(10, 0, 100);
-	for (auto val: sampler)
-		std::cout << val << " ";
-	std::cout << std::endl;
-
-	IotaLabeler labeler;
-	NoWeighter weighter;
-    UndirectedGraph<int> g(10, labeler, weighter);
-    g.add_edges(5);
-    g.connect();
-    std::cout << g << std::endl;
-}
+#include "Catch/single_include/catch.hpp"
+#include "TestAdjacencyTree.cpp"
+#include "TestAdjacencyManager.cpp"
