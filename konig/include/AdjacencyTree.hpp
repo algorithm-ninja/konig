@@ -105,7 +105,7 @@ namespace konig {
          * Since we need to call AdjacencyTree::advance in order to efficiently advance the iterator (see, for
          * instance, operator+) we need to store a reference to the AdjacencyTree instance that forged the iterator.
          */
-        class iterator : std::iterator<std::random_access_iterator_tag, adjacency_t> {
+        class iterator : public std::iterator<std::random_access_iterator_tag, adjacency_t> {
             friend class AdjacencyTree;
 
             // Members
@@ -125,6 +125,16 @@ namespace konig {
                 splay_vertex = other.splay_vertex;
 
                 return *this;
+            }
+
+            std::ptrdiff_t operator-(const iterator& other) const {
+#ifdef KONIG_DEBUG
+                assert(&adj_tree == &other.adj_tree);
+#endif
+                std::ptrdiff_t this_rank = (splay_vertex) ? adj_tree._rank(splay_vertex) - 1 : adj_tree.size();
+                std::ptrdiff_t other_rank = (other.splay_vertex) ? adj_tree._rank(other.splay_vertex) - 1 : adj_tree.size();
+
+                return this_rank - other_rank;
             }
 
             bool is_past_the_end() const {

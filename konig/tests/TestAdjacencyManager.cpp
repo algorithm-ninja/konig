@@ -13,9 +13,7 @@ namespace TestAdjacencyManager {
             AM.insert({0, 1});
 
             CHECK(AM.size() == 1);
-            std::vector<konig::adjacency_t> neig;
-            for (auto it = AM.begin(0); it != AM.end(0); ++it) // FIXME (why does the range-based construction fails?)
-              neig.push_back(*it);
+            std::vector<konig::adjacency_t> neig(AM.begin(0), AM.end(0));
 
             CHECK(neig == std::vector<konig::adjacency_t>({
               {0, 1}
